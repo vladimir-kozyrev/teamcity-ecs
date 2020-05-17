@@ -29,30 +29,38 @@ data "terraform_remote_state" "teamcity_vpc" {
 }
 
 #
-# RDS
+# Security groups
 #
 resource "aws_security_group" "teamcity_database" {
   name        = "teamcity_database"
-  description = "Allow traffic from private subnets"
+  description = "TeamCity database"
   vpc_id      = data.terraform_remote_state.teamcity_vpc.outputs.vpc_id
-  ingress {
-    description = "Allow traffic from private subnets"
-    from_port   = 3306
-    to_port     = 3306
-    protocol    = "tcp"
-    cidr_blocks = data.terraform_remote_state.teamcity_vpc.outputs.private_subnets_cidr_blocks
-  }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
   tags = {
     Name = "teamcity_database"
   }
 }
 
+resource "aws_security_group_rule" "allow_traffic_from_vpc" {
+  type              = "ingress"
+  from_port         = 3306
+  to_port           = 3306
+  protocol          = "tcp"
+  cidr_blocks       = concat(data.terraform_remote_state.teamcity_vpc.outputs.private_subnets_cidr_blocks, data.terraform_remote_state.teamcity_vpc.outputs.public_subnets_cidr_blocks)
+  security_group_id = aws_security_group.teamcity_database.id
+}
+
+resource "aws_security_group_rule" "allow_all_outbound_traffic" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.teamcity_database.id
+}
+
+#
+# RDS
+#
 resource "aws_db_subnet_group" "teamcity_database" {
   name       = "teamcity-ecs-subnet-group"
   subnet_ids = data.terraform_remote_state.teamcity_vpc.outputs.private_subnets
