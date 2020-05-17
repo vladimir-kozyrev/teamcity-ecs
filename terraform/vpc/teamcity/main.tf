@@ -15,6 +15,7 @@ terraform {
   }
 }
 
+# https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/2.33.0
 module "vpc" {
   source               = "terraform-aws-modules/vpc/aws"
   version              = "2.33.0"
