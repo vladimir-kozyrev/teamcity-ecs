@@ -33,14 +33,14 @@ data "terraform_remote_state" "teamcity_vpc" {
 #
 resource "aws_security_group" "efs" {
   name        = "efs"
-  description = "Allow traffic from private subnets"
+  description = "Allow traffic from VPC subnets"
   vpc_id      = data.terraform_remote_state.teamcity_vpc.outputs.vpc_id
   ingress {
-    description = "Allow traffic from private subnets"
+    description = "Allow traffic from VPC subnets"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = data.terraform_remote_state.teamcity_vpc.outputs.private_subnets_cidr_blocks
+    cidr_blocks = concat(data.terraform_remote_state.teamcity_vpc.outputs.private_subnets_cidr_blocks, data.terraform_remote_state.teamcity_vpc.outputs.public_subnets_cidr_blocks)
   }
   egress {
     from_port   = 0
