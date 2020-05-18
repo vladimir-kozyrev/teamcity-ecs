@@ -7,3 +7,8 @@ output "teamcity_server_http_endpoint" {
   value       = module.teamcity_server.alb_dns_name
   description = "Connect to the server via HTTP at this endpoint"
 }
+
+output "teamcity_server_sg_id" {
+  value       = module.teamcity_server.tc_server_sg_id
+  description = "TeamCity server security group ID"
+}

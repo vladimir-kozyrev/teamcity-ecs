@@ -5,49 +5,65 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    # Replace this with your bucket name!
-    bucket = "terraform-teamcity-ecs"
-    key    = "services/teamcity/terraform.tfstate"
-    region = "eu-north-1"
-    # Replace this with your DynamoDB table name!
+    bucket         = "terraform-teamcity-ecs"
+    key            = "services/teamcity/terraform.tfstate"
+    region         = "eu-north-1"
     dynamodb_table = "terraform-teamcity-locks"
     encrypt        = true
   }
 }
 
-data "terraform_remote_state" "teamcity_db" {
-  backend = "s3"
-  config = {
-    # Replace this with your bucket name!
-    bucket = "terraform-teamcity-ecs"
-    key    = "data-stores/mysql/terraform.tfstate"
-    region = "eu-north-1"
-  }
-}
-
+#
+# Remote state
+#
 data "terraform_remote_state" "teamcity_vpc" {
   backend = "s3"
   config = {
-    # Replace this with your bucket name!
-    bucket = "terraform-teamcity-ecs"
+    bucket = var.s3_tf_state_bucket
     key    = "vpc/teamcity/terraform.tfstate"
     region = "eu-north-1"
   }
 }
 
+data "terraform_remote_state" "efs" {
+  backend = "s3"
+  config = {
+    bucket = var.s3_tf_state_bucket
+    key    = "data-stores/efs/terraform.tfstate"
+    region = var.region
+  }
+}
+
+data "terraform_remote_state" "iam" {
+  backend = "s3"
+  config = {
+    bucket = var.s3_tf_state_bucket
+    key    = "global/iam/terraform.tfstate"
+    region = var.region
+  }
+}
+
+#
+# TeamCity server
+#
 resource "aws_key_pair" "teamcity" {
   key_name   = "teamcity"
-  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCzcWAtMR1p/U53G2Wt+9fYbIW6Ijy+kWmcsn8QRaKzlyQfAOrSwGu7Lgiv03vLfbQPI7aUsdawkcvXv9OYdScJV27GgI3cSDYep4NsPwclgZUpet3hb3FfQRxByG3+4v8dVZjhqjqCBmrh7uevyGES+GPXgpoVbIZy7xuiT4AofUU9cFnMR027ohUycZnaAet98uDkTPovTYZ4OiuNh6l11u0KMgzuEe9TllCs/PCKraPKnIVocXSCu6sLbUDSN8R+9TqVHU/PfkHCBdSI/Vs8W7++W6JeT8ATWXA+OeNsT1bdV8LOwd8OTb1XTgtlXlOXxZRtSg0KaZLU2QcUoLrjhQrwIFsjZ4D6rlitHNOhE5Ep4hLt6kCACITAOxs1/+TcJhF6+quTsNzR0ye5JacrR5arpnbd2eLLtdWKfDGVl1KgbGj85IHJkmsfZ/da32qwtk8kRKO5ePdQkThmuz0ZXRX3z3rjhI3veqmVzzGLvQ6CZbSHg3mVSWAocn6KTv0= vkozyrev@MacBook-Pro-Vladimir.local"
+  public_key = var.tc_server_public_key
 }
 
 module "teamcity_server" {
-  source              = "../../modules/services/teamcity_server"
-  ami                 = "ami-007e30b5b41aba58f"
-  instance_type       = "t3.small"
-  vpc_id              = data.terraform_remote_state.teamcity_vpc.outputs.vpc_id
+  source        = "../../modules/services/teamcity_server"
+  ami           = "ami-007e30b5b41aba58f"
+  instance_type = "t3.medium"
+  vpc_id        = data.terraform_remote_state.teamcity_vpc.outputs.vpc_id
   # move to private subnet once everything is tested
-  tc_server_subnet_id = data.terraform_remote_state.teamcity_vpc.outputs.public_subnets[0]
-  alb_subnets         = data.terraform_remote_state.teamcity_vpc.outputs.public_subnets
-  key_name            = aws_key_pair.teamcity.key_name
-  tc_server_http_port = 80
+  tc_server_subnet_id        = data.terraform_remote_state.teamcity_vpc.outputs.public_subnets[0]
+  alb_subnets                = data.terraform_remote_state.teamcity_vpc.outputs.public_subnets
+  key_name                   = aws_key_pair.teamcity.key_name
+  tc_server_http_port        = 80
+  tc_server_version          = "2019.2.4"
+  tc_server_instance_profile = data.terraform_remote_state.iam.outputs.tc_server_instance_profile
+  efs_id                     = data.terraform_remote_state.efs.outputs.teamcity_efs_id
+  efs_sg_id                  = data.terraform_remote_state.efs.outputs.teamcity_efs_sg_id
+  efs_dns_name               = data.terraform_remote_state.efs.outputs.teamcity_efs_dns_name
 }
