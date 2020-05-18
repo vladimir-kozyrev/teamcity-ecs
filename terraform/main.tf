@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "eu-north-1"
+  region  = "eu-north-1"
   version = "~> 2.62"
 }
 
@@ -30,9 +30,9 @@ resource "aws_dynamodb_table" "terraform_locks" {
 terraform {
   backend "s3" {
     # Replace this with your bucket name!
-    bucket         = "terraform-teamcity-ecs"
-    key            = "global/s3/terraform.tfstate"
-    region         = "eu-north-1"
+    bucket = "terraform-teamcity-ecs"
+    key    = "global/s3/terraform.tfstate"
+    region = "eu-north-1"
     # Replace this with your DynamoDB table name!
     dynamodb_table = "terraform-teamcity-locks"
     encrypt        = true
