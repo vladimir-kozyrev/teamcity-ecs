@@ -1,6 +1,8 @@
 Deploy TeamCity with dynamic agents on AWS
 ------------------------------------------
 
+# This project has been abandoned & is not finished
+
 ### What code in this repo does
 
 * Creates an AMI for TeamCity server using packer
